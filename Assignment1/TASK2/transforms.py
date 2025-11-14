@@ -1,5 +1,5 @@
 #####TUWIEN - CV: Task2 - Image Stitching
-#####*********+++++++++*******++++INSERT GROUP NO. HERE
+#####*********+++++++++*******++++ Group 14
 from typing import List, Tuple
 from numpy.linalg import inv
 import numpy as np
@@ -61,10 +61,44 @@ def get_transform(kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], matches: Lis
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
-    # student_code end
+    best_inliers = []
+    best_H = None
+    N = 1000
+    T = 5.0
 
-    return trans, inliers
+    if len(matches) < 4:
+        return None, []
+    
+    # Convert keypoints to arrays
+    pts1_all = np.float32([kp1[m.queryIdx].pt for m in matches])
+    pts2_all = np.float32([kp2[m.trainIdx].pt for m in matches])
+
+    for _ in range(N):
+        samples = random.sample(range(len(matches)), 4)
+        pts1_sample = pts1_all[samples]
+        pts2_sample = pts2_all[samples]
+
+        H = get_geometric_transform(pts1_sample, pts2_sample)
+
+        pts1_hom = pts1_all.reshape(-1,1,2).astype(np.float32)
+        pts2_proj = cv2.perspectiveTransform(pts1_hom, H).reshape(-1,2)
+
+        errors = np.linalg.norm(pts2_all - pts2_proj, axis=1)
+        current_inliers = [i for i,e in enumerate(errors) if e < T]
+
+        if len(current_inliers) > len(best_inliers):
+            best_inliers = current_inliers
+            best_H = H
+    
+    if best_inliers and len(best_inliers) >= 4:
+        pts1_inliers = pts1_all[best_inliers]
+        pts2_inliers = pts2_all[best_inliers]
+        best_H = get_geometric_transform(pts1_inliers, pts2_inliers)
+
+    # Quelle: https://docs.opencv.org/3.4/d1/de0/tutorial_py_feature_homography.html
+    # student_code end
+    return best_H, best_inliers
+    #return trans, inliers
 
 
 def to_center(desc: List[np.ndarray], kp: List[cv2.KeyPoint]) -> List[np.ndarray]:

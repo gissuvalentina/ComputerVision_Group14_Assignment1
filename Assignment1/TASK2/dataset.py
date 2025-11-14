@@ -55,7 +55,7 @@ def get_panorama_data(path: str) -> Tuple[List[np.ndarray], List[cv2.KeyPoint], 
         kp, des = sift.detectAndCompute(img_gray, None)
 
         # keypoints: distinctive positions in the image, e.g. corners, that are stable under scale and rotation changes
-        # descriptors: 128-dims feature vectors describing the local appearance around each keypoint
+        # descriptors: 128-dims feature vectors describing the local appearance around each
         img_data.append(img_rgb)
         all_keypoints.append(kp) 
         all_descriptors.append(des) # (num of kp) x 128 vectors
