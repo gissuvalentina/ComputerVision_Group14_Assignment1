@@ -61,44 +61,49 @@ def get_transform(kp1: List[cv2.KeyPoint], kp2: List[cv2.KeyPoint], matches: Lis
     """
 
     # student_code start
-    best_inliers = []
-    best_H = None
-    N = 1000
-    T = 5.0
+    N = 1000 # number of iterations
+    T = 5.0 # threshold
 
-    if len(matches) < 4:
-        return None, []
-    
-    # Convert keypoints to arrays
-    pts1_all = np.float32([kp1[m.queryIdx].pt for m in matches])
-    pts2_all = np.float32([kp2[m.trainIdx].pt for m in matches])
+    max_inliers = 0
+    inliers = []
+    trans = None
+
+    all_kp1 = np.asarray([kp1[m.queryIdx].pt for m in matches], dtype=np.float32)
+    all_kp2 = np.asarray([kp2[m.trainIdx].pt for m in matches], dtype=np.float32)
 
     for _ in range(N):
-        samples = random.sample(range(len(matches)), 4)
-        pts1_sample = pts1_all[samples]
-        pts2_sample = pts2_all[samples]
+        selected_matches = random.sample(matches, 4)
+        # cv2.DMatch consits of queryIdx, trainIdx and distance
+        # queryIdx = Index of KeyPoints in first Img/KeyPoint list, point is matched
+        # trainIdx = Index of KeyPoints in second Img/KeyPoint list, corresponing (matched) point
+        selected_kp1 = np.asarray([kp1[m.queryIdx].pt for m in selected_matches], dtype=np.float32)
+        selected_kp2 = np.asarray([kp2[m.trainIdx].pt for m in selected_matches], dtype=np.float32)
 
-        H = get_geometric_transform(pts1_sample, pts2_sample)
+        # Estimate homography between the selected points
+        H = get_geometric_transform(selected_kp1, selected_kp2)
+        # Transform points of matches in the first image
+        all_kp1_trans = cv2.perspectiveTransform(all_kp1.reshape(-1,1,2), H) # needs (N, 1, 2)
+        all_kp1_trans_2D = all_kp1_trans.reshape(-1,2) # in 2D zurückwandeln
 
-        pts1_hom = pts1_all.reshape(-1,1,2).astype(np.float32)
-        pts2_proj = cv2.perspectiveTransform(pts1_hom, H).reshape(-1,2)
+        # Calculate euclidean distance between transformed points of img 1 and second img
+        distances = np.linalg.norm(all_kp1_trans_2D - all_kp2, axis=1) # calculates for each zeile seperately
+        # Determines number of inliers 
+        mask_inliers = distances < T
+        num_inliers = np.sum(mask_inliers)
 
-        errors = np.linalg.norm(pts2_all - pts2_proj, axis=1)
-        current_inliers = [i for i,e in enumerate(errors) if e < T]
+        # Take the homography that has the max. number of inliers
+        if num_inliers > max_inliers:
+            max_inliers = num_inliers
+            inliers = np.where(mask_inliers)[0] # indices of inliers
+            trans = H
 
-        if len(current_inliers) > len(best_inliers):
-            best_inliers = current_inliers
-            best_H = H
+    # Re-estiamte the homography with ALL inliers one more time -> more accurate result
+    inlier_kp1 = all_kp1[inliers]
+    inlier_kp2 = all_kp2[inliers]
+    trans = get_geometric_transform(inlier_kp1, inlier_kp2)
     
-    if best_inliers and len(best_inliers) >= 4:
-        pts1_inliers = pts1_all[best_inliers]
-        pts2_inliers = pts2_all[best_inliers]
-        best_H = get_geometric_transform(pts1_inliers, pts2_inliers)
-
-    # Quelle: https://docs.opencv.org/3.4/d1/de0/tutorial_py_feature_homography.html
     # student_code end
-    return best_H, best_inliers
-    #return trans, inliers
+    return trans, inliers
 
 
 def to_center(desc: List[np.ndarray], kp: List[cv2.KeyPoint]) -> List[np.ndarray]:
