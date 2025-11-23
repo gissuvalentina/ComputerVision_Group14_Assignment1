@@ -1,0 +1,33 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.so
+
+# --- Virtual Environments ---
+Assignment1/A1/
+
+# --- Jupyter Notebook Checkpoints ---
+.ipynb_checkpoints/
+
+# --- IDE / Editor ---
+.vscode/
+.idea/
+
+# --- Entwicklung / Logs ---
+*.log
+
+# --- Betriebssystem ---
+# macOS
+.DS_Store
+# Windows
+Thumbs.db
+
+# --- Sonstiges ---
+*.swp
+*.tmp
+
+# --- Falls du mit pipenv oder poetry arbeitest ---
+# pipenv
+Pipfile.lock
+# poetry
+poetry.lock
