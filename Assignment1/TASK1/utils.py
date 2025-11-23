@@ -49,7 +49,11 @@ def show_blobs(img: np.ndarray, peaks: np.ndarray, all_sigmas: np.ndarray, group
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in utils.py")
+
+    level_indices = peaks[:, 2].astype(int)
+    sigmas_for_peaks = np.take(all_sigmas, level_indices)
+    radi = np.sqrt(2) * sigmas_for_peaks
+    
     # student_code end
 
     # do not change from here

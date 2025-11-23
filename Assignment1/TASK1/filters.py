@@ -59,7 +59,45 @@ def get_log_pyramid(img: np.ndarray, sigma: float, k: float, levels: int) -> Tup
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in filters.py")
+    
+    if img.ndim == 3 and img.shape[2] == 1:
+        img_2d = img[:, :, 0]
+    else:
+        img_2d = img
+
+    h, w = img_2d.shape[:2]
+
+    # (n x m x levels)
+    scale_space = np.zeros((h, w, levels), dtype=np.float32)
+    # sigmas used at each level
+    all_sigmas = np.zeros(levels, dtype=np.float32)
+
+    cur_sigma = sigma
+
+    for i in range(levels):
+        # filter size: 2 * floor(3*sigma) + 1   (covers [-3σ, 3σ])
+        size = int(2 * np.floor(3 * cur_sigma) + 1)
+
+        # 1) LoG kernel at current scale
+        log_kernel = create_log_kernel(size, cur_sigma)
+
+        # scale-normalize: multiply by σ²
+        log_kernel = np.multiply(log_kernel, cur_sigma ** 2)
+
+        # 2) convolve and take absolute response
+        response = cv2.filter2D(
+            img_2d.astype(np.float32),
+            ddepth=-1,
+            kernel=log_kernel,
+            borderType=cv2.BORDER_REPLICATE,
+        )
+
+        scale_space[:, :, i] = np.abs(response)
+        all_sigmas[i] = cur_sigma
+
+        # 3) increase σ by factor k
+        cur_sigma *= k
+
     # student_code end
 
     return scale_space, all_sigmas
