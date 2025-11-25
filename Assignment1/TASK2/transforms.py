@@ -128,7 +128,24 @@ def to_center(desc: List[np.ndarray], kp: List[cv2.KeyPoint]) -> List[np.ndarray
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
+    num_images = len(desc)
+    center_idx = num_images // 2
+
+    # Calculate homographies between pairs of images
+    H_pair = []
+    for i in range(num_images - 1):
+        matches = mapping.calculate_matches(desc[i], desc[i + 1])
+        H, _ = get_transform(kp[i], kp[i + 1], matches)
+        H_pair.append(H)
+
+    H_center = [np.eye(3, dtype=np.float32) for _ in range(num_images)]
+
+    # Calculate homographies to center image
+    for i in range(center_idx - 1, -1, -1):
+        H_center[i] = H_center[i + 1] @ H_pair[i]
+
+    for i in range(center_idx + 1, num_images):
+        H_center[i] = H_center[i - 1] @ inv(H_pair[i - 1])
     # student_code end
 
     return H_center
@@ -160,7 +177,33 @@ def get_panorama_extents(images: List[np.ndarray], H: List[np.ndarray]) -> Tuple
     """
 
     # student_code start
-    raise NotImplementedError("TO DO in transforms.py")
+    all_corners = []
+
+    for img, H_img in zip(images, H):
+        h, w = img.shape[:2]
+        corners = np.array([[0, 0], [w, 0], [w, h], [0, h]], dtype=np.float32).reshape(-1, 1, 2)
+        transformed_corners = cv2.perspectiveTransform(corners, H_img)
+        all_corners.append(transformed_corners.reshape(-1, 2))
+
+    all_corners = np.vstack(all_corners)
+
+    # Determine the bounding box of the panorama
+    x_min = np.min(all_corners[:, 0])
+    y_min = np.min(all_corners[:, 1])
+    x_max = np.max(all_corners[:, 0])
+    y_max = np.max(all_corners[:, 1])
+
+    # Calculate width and height of the panorama
+    width = int(np.ceil(x_max - x_min))
+    height = int(np.ceil(y_max - y_min))
+
+    # Create translation matrix to shift panorama to positive coordinates
+    T = np.array([
+        [1, 0, -x_min],
+        [0, 1, -y_min],
+        [0, 0, 1]
+    ], dtype=np.float32)
+
     # student_code end
 
     return T, width, height
