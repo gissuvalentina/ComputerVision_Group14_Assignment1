@@ -34,7 +34,22 @@ def get_simple(images: List[np.ndarray], width: int, height: int, H: List[np.nda
     """
     
     # student_code start
-    raise NotImplementedError("TO DO in panorama.py")
+    result = np.zeros((height, width, 3), dtype=np.uint8)
+
+    for img, H_i in zip(images, H):
+        H_total = T @ H_i
+
+        # Warp the image using the combined homography
+        warped_img = cv2.warpPerspective(img, H_total, (width, height))
+
+        # Create a mask of non-zero pixels in the warped image
+        gray = cv2.cvtColor(warped_img, cv2.COLOR_BGR2GRAY)
+        mask = gray > 0
+
+        blended = cv2.addWeighted(result, 0.5, warped_img, 0.5, 0)
+
+        # Overlay the warped image onto the result
+        result[mask] = blended[mask]
     # student_code end
         
     return result
@@ -66,7 +81,33 @@ def get_blended(images: List[np.ndarray], width: int, height: int, H: List[np.nd
     """
     
     # student_code start
-    raise NotImplementedError("TO DO in panorama.py")
+    result = np.zeros((height, width, 3), dtype=np.float32)
+    weight_sum = np.zeros((height, width), dtype=np.float32)
+
+    for img, H_i in zip(images, H):
+        H_total = T @ H_i
+
+        warped_img = cv2.warpPerspective(img, H_total, (width, height))
+
+        gray = cv2.cvtColor(warped_img, cv2.COLOR_BGR2GRAY)
+        mask = (gray > 0).astype(np.uint8)
+
+        # Compute distance transform for alpha blending
+        distance = ndimage.distance_transform_edt(mask)
+        alpha = distance / (np.max(distance) + 1e-9)
+
+        # Expand alpha to three channels
+        alpha_3 = np.repeat(alpha[:, :, np.newaxis], 3, axis=2)
+
+        # Blend the warped image into the result
+        result += warped_img * alpha_3
+        weight_sum += alpha
+    
+    # Normalize
+    weight_3 = np.repeat(weight_sum[:, :, np.newaxis], 3, axis=2)
+    result = result / (weight_3 + 1e-9)
+
+    result = np.clip(result, 0, 255).astype(np.uint8)
     # student_code end
 
     return result
